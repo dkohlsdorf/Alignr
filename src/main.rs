@@ -21,7 +21,7 @@ fn main() {
     let spec_x = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_x);
     let spec_y = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_y);
 
-    let aligner = align::Alignment::from_params(gap_penalty, w, align::BaseDistance::L2);
+    let aligner = align::Alignment::from_params(gap_penalty, w, align::BaseDistance::DTW(4));
     let (dp, xi, yi) = aligner.align(&spec_x, &spec_y);
     let ri = range::SpectrogramRange::from_path(&xi);
     let rj = range::SpectrogramRange::from_path(&yi);
