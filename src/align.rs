@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 pub enum BaseDistance {
     L2,
-    DTW,
+    DTW(usize),
 }
 
 
@@ -35,8 +35,8 @@ impl Alignment {
 	for i in 1 .. n + 1 {
 	    for j in usize::max(1, save_sub(i, w)) .. usize::min(m + 1, i + w)  {
 		let distance = match self.base_distance {
-		    BaseDistance::DTW => dtw1d(x.vec(i - 1), y.vec(j - 1), x.n_bins / 10),
-		    _                 => euclidean(x.vec(i - 1), y.vec(j - 1))
+		    BaseDistance::DTW(warp) => dtw1d(x.vec(i - 1), y.vec(j - 1), warp),
+		    _                       => euclidean(x.vec(i - 1), y.vec(j - 1))
 		};
 		let match_score = match dp.get(&(i-1, j-1)) {
 		    Some(score) => *score,
@@ -53,10 +53,10 @@ impl Alignment {
 		
 		if delete_score < match_score && delete_score < insert_score {
 		    bp.insert((i, j), (i, j - 1));
-		    dp.insert((i,j), delete_score + self.gap_penalty * distance);
+		    dp.insert((i,j), delete_score + self.gap_penalty + distance);
 		} else if insert_score < match_score && insert_score < delete_score {
 		    bp.insert((i, j), (i - 1, j));
-		    dp.insert((i,j), insert_score + self.gap_penalty * distance);
+		    dp.insert((i,j), insert_score + self.gap_penalty + distance);
 		} else {
 		    bp.insert((i, j), (i - 1, j - 1));
 		    dp.insert((i,j), match_score + distance);

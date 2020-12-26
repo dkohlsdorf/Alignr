@@ -61,15 +61,6 @@ impl Spectrogram {
     }
 
     
-    pub fn img(&self) -> Vec<u8> {
-        let max = max(&self.spec[..]);
-        let min = min(&self.spec[..]);
-        self.spec
-            .iter()
-            .map(|x| ((x - min) / (max - min) * 255.0) as u8)
-            .collect()
-    }
-    
     pub fn len(&self) -> usize {
         self.spec.len() / (self.n_bins as usize)
     }
