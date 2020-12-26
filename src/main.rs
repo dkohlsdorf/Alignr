@@ -4,14 +4,17 @@ extern crate image;
 pub mod numerics;
 pub mod audio;
 pub mod spectrogram;
+pub mod align;
 
 use std::fs::File;
+
 
 pub fn plot(file: String, pixels: &[u8], rows: u32, cols: u32) {
     let output = File::create(format!("{}", file)).unwrap();
     let encoder = image::png::PNGEncoder::new(output);
     encoder.encode(&pixels, cols, rows, image::ColorType::L8).unwrap();
 }
+
 
 fn main() {
     println!("Hello, world!");
@@ -25,6 +28,8 @@ fn main() {
         spec.len() as u32,
         spec.n_bins as u32,
     );
+    let a = align::Alignment::from_params(0.25, 2, align::BaseDistance::DTW);
+    a.align(&spec, &spec);
     println!("{}", numerics::euclidean(&x, &y));
     println!("{}", numerics::dtw1d(&x, &y, 0));
     println!("{:?}", numerics::hamming(11));

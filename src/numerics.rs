@@ -92,8 +92,7 @@ pub fn dtw1d(x: &[f32], y: &[f32], band: usize) -> f32 {
 
     let mut dp = vec![std::f32::INFINITY; (n + 1)  * (m + 1)];
     dp[0] = 0.0;
-    for i in 1 .. n + 1 {
-	
+    for i in 1 .. n + 1 {	
 	for j in usize::max(1, save_sub(i, w)) .. usize::min(m + 1, i + w)  {
 	    let distance = f32::powf(x[i - 1] - y[j - 1], 2.0);
 	    dp[i * m + j] = distance + min3(
