@@ -9,9 +9,9 @@ pub mod range;
 fn main() {
     let fft_win     = 256;
     let fft_step    = 128;
-    let gap_penalty = 2.0;
+    let gap_penalty = 5.0;
     let w           = 50;
-    let in_x        = "data/x.wav";
+    let in_x        = "data/z.wav";
     let in_y        = "data/y.wav";
     let out_x       = "aligned_x.wav";
     let out_y       = "aligned_y.wav";
@@ -21,7 +21,7 @@ fn main() {
     let spec_x = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_x);
     let spec_y = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_y);
 
-    let aligner = align::Alignment::from_params(gap_penalty, w, align::BaseDistance::DTW(4));
+    let aligner = align::Alignment::from_params(gap_penalty, w, align::BaseDistance::DTW(5));
     let (dp, xi, yi) = aligner.align(&spec_x, &spec_y);
     let ri = range::SpectrogramRange::from_path(&xi);
     let rj = range::SpectrogramRange::from_path(&yi);
