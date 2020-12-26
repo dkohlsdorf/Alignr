@@ -1,8 +1,8 @@
 #[derive(Debug)]
 pub struct SpectrogramRange {
-    start: usize,
-    stop: usize,
-    is_gap: bool 
+    pub start: usize,
+    pub stop: usize,
+    pub is_gap: bool 
 }
 
 impl SpectrogramRange {
