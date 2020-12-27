@@ -3,7 +3,7 @@ use crate::numerics::*;
 
 use std::collections::HashMap;
 
-
+#[derive(Debug)]
 pub enum BaseDistance {
     L2,
     DTW(usize),
