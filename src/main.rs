@@ -1,5 +1,6 @@
 extern crate clap;
 use clap::{Arg, App};
+use std::sync::Arc;
 
 pub mod numerics;
 pub mod audio;
@@ -27,6 +28,11 @@ fn main() {
 	     .short("g")
 	     .long("gap")
 	     .help("Gap Penalty for DTW computation DEFAULT 0.0")
+	     .takes_value(true))	
+	.arg(Arg::with_name("n_workers")
+	     .short("n")
+	     .long("n_workers")
+	     .help("Number of parallel workers DEFAULT 1")
 	     .takes_value(true))	
 	.arg(Arg::with_name("sakoe_chiba")
 	     .short("b")
@@ -61,7 +67,7 @@ fn main() {
     let fft_step    = matches.value_of("fft_step").unwrap_or("128").parse::<usize>().unwrap();
     let gap_penalty = matches.value_of("gap").unwrap_or("0.0").parse::<f32>().unwrap();
     let warp_perc   = matches.value_of("sakoe_chiba").unwrap_or("1.0").parse::<f32>().unwrap();
-    
+    let n_workers   = matches.value_of("n_workers").unwrap_or("1").parse::<usize>().unwrap();
     let in_x        =  matches.value_of("in1").unwrap();
     let in_y        =  matches.value_of("in2").unwrap();
     let out_x       =  matches.value_of("out1").unwrap_or("align_x.wav");
@@ -73,11 +79,19 @@ fn main() {
     println!("Aligning: {} and {} to {} and {}", in_x, in_y, out_x, out_y);
     let raw_x = audio::AudioData::from_file(in_x);
     let raw_y = audio::AudioData::from_file(in_y);
+
     let spec_x = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_x);
     let spec_y = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_y);
-    let w = ((usize::max(spec_x.len(), spec_y.len()) as f32) * warp_perc) as usize;
-    let aligner = align::Alignment::from_params(gap_penalty, w, base_dist);
-    let (dp, xi, yi) = aligner.align(&spec_x, &spec_y);
+
+    let frames_x = spec_x.len();
+    let frames_y = spec_y.len();
+    let w = ((usize::max(frames_x, frames_y) as f32) * warp_perc) as usize;
+    
+    let x = Arc::from(spec_x);
+    let y = Arc::from(spec_y);
+    let aligner = align::Alignment::from_params(gap_penalty, w, base_dist, n_workers);
+
+    let (dp, xi, yi) = aligner.align(x, y);
     let ri = range::SpectrogramRange::from_path(&xi);
     let rj = range::SpectrogramRange::from_path(&yi);
 
@@ -87,8 +101,6 @@ fn main() {
     raw_x.write_alignment(&ranges_x, out_x.to_string());
     raw_y.write_alignment(&ranges_y, out_y.to_string());
 
-    let frames_x = spec_x.len();
-    let frames_y = spec_y.len();
     let score    = dp[&(frames_x, frames_y)];
     println!("alignment_score: {} length_x: {} length_y: {}", score, frames_x, frames_y)
 }
