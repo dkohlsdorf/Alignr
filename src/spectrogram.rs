@@ -14,7 +14,7 @@ pub struct Spectrogram {
 impl Spectrogram {
 
     
-    pub fn from_audio(fft_size: usize, fft_step: usize, raw_audio: &AudioData) -> Spectrogram {
+    pub fn from_audio(fft_size: usize, fft_step: usize, bandpass_min: usize, bandpass_max: usize, raw_audio: &AudioData) -> Spectrogram {
 	let samples: Vec<Complex<f32>> = raw_audio
             .data
             .iter()
@@ -37,11 +37,12 @@ impl Spectrogram {
                 .map(|(i, x)| x * hamming[i])
                 .collect();
             fft.process(&mut input[..], &mut output);
-            let result: Vec<f32> = output
+            let dft: Vec<f32> = output
                 .iter()
                 .map(|complex| f32::sqrt(complex.norm_sqr()))
                 .take(fft_size / 2)
                 .collect();
+	    let result = &dft[bandpass_min..bandpass_max];
 	    let mu_spec  = mean(&result[0..result.len()]);
             let std_spec = f32::max(std(&result[0..result.len()], mu_spec), 1.0);
             for result in result.iter() {
@@ -50,9 +51,18 @@ impl Spectrogram {
 	}
 
 	Spectrogram {
-            n_bins: fft_size / 2,
+            n_bins: bandpass_max - bandpass_min,
             spec: spectrogram
         }
+    }
+
+    pub fn img_spec(&self) -> Vec<u8> {
+        let max = max(&self.spec[..]);
+        let min = min(&self.spec[..]);
+        self.spec
+            .iter()
+            .map(|x| ((1.0 - (x - min) / (max - min)) * 255.0) as u8)
+            .collect()
     }
 
     

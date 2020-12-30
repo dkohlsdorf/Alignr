@@ -1,4 +1,6 @@
 extern crate clap;
+extern crate image;
+
 use clap::{Arg, App};
 use std::sync::Arc;
 
@@ -7,6 +9,14 @@ pub mod audio;
 pub mod spectrogram;
 pub mod align;
 pub mod range;
+
+use std::fs::File;
+
+pub fn plot(file: String, pixels: &[u8], rows: u32, cols: u32) {
+    let output = File::create(format!("{}", file)).unwrap();
+    let encoder = image::png::PNGEncoder::new(output);
+    encoder.encode(&pixels, cols, rows, image::ColorType::L8).unwrap();
+}
 
 
 fn main() {
@@ -17,13 +27,24 @@ fn main() {
 	.arg(Arg::with_name("fft_win")
 	     .short("w")
 	     .long("fft_win")
-	     .help("Windoe size for spectrogram computation DEFAULT 256")
+	     .help("Windoe size for spectrogram computation DEFAULT 1024")
 	     .takes_value(true))
 	.arg(Arg::with_name("fft_step")
 	     .short("s")
 	     .long("fft_step")
 	     .help("Step size if window for spectrogram computation DEFAULT 128")
 	     .takes_value(true))
+	.arg(Arg::with_name("bandpass_min")
+	     .long("bandpass_min")
+	     .help("Minium bandpass DEFAULT 10 dft bins")
+	     .takes_value(true))
+	.arg(Arg::with_name("bandpass_max")
+	     .long("bandpass_max")
+	     .help("Maximum bandpass DEFAULT 266 dft bins")
+	     .takes_value(true))
+	.arg(Arg::with_name("debug")
+	     .long("debug")
+             .help("Debug Mode"))
 	.arg(Arg::with_name("gap")
 	     .short("g")
 	     .long("gap")
@@ -63,8 +84,11 @@ fn main() {
 	     .takes_value(true))
 	.get_matches();
     
-    let fft_win     = matches.value_of("fft_win").unwrap_or("256").parse::<usize>().unwrap();
-    let fft_step    = matches.value_of("fft_step").unwrap_or("128").parse::<usize>().unwrap();
+    let fft_win      = matches.value_of("fft_win").unwrap_or("1024").parse::<usize>().unwrap();
+    let fft_step     = matches.value_of("fft_step").unwrap_or("128").parse::<usize>().unwrap();
+    let bandpass_min = matches.value_of("bandpass_min").unwrap_or("10").parse::<usize>().unwrap();
+    let bandpass_max = matches.value_of("bandpass_max").unwrap_or("266").parse::<usize>().unwrap();
+	     
     let gap_penalty = matches.value_of("gap").unwrap_or("0.0").parse::<f32>().unwrap();
     let warp_perc   = matches.value_of("sakoe_chiba").unwrap_or("1.0").parse::<f32>().unwrap();
     let n_workers   = matches.value_of("n_workers").unwrap_or("1").parse::<usize>().unwrap();
@@ -80,9 +104,17 @@ fn main() {
     let raw_x = audio::AudioData::from_file(in_x);
     let raw_y = audio::AudioData::from_file(in_y);
 
-    let spec_x = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_x);
-    let spec_y = spectrogram::Spectrogram::from_audio(fft_win, fft_step, &raw_y);
+    let spec_x = spectrogram::Spectrogram::from_audio(fft_win, fft_step, bandpass_min, bandpass_max, &raw_x);
+    let spec_y = spectrogram::Spectrogram::from_audio(fft_win, fft_step, bandpass_min, bandpass_max, &raw_y);
 
+    match matches.occurrences_of("debug") {        
+        1 => {
+	    let _ = plot("spec_x.png".to_string(), &spec_x.img_spec(), spec_x.len() as u32, spec_x.n_bins as u32);
+	    let _ = plot("spec_y.png".to_string(), &spec_y.img_spec(), spec_y.len() as u32, spec_y.n_bins as u32);    	   
+	},
+	_ => ()
+    }
+    
     let frames_x = spec_x.len();
     let frames_y = spec_y.len();
     let w = ((usize::max(frames_x, frames_y) as f32) * warp_perc) as usize;
@@ -102,5 +134,5 @@ fn main() {
     raw_y.write_alignment(&ranges_y, out_y.to_string());
 
     let score    = dp[&(frames_x, frames_y)];
-    println!("alignment_score: {} length_x: {} length_y: {}", score, frames_x, frames_y)
+    println!("alignment_score: {} total: {} length_x: {} length_y: {}", score / (frames_x + frames_y) as f32, score, frames_x, frames_y)
 }
